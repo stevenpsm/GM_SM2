@@ -1,0 +1,70 @@
+
+Sm2derSimplfied DEFINITIONS ::= 
+BEGIN
+
+/****************************
+* simonpang
+* @ catt2009 2011-12-04
+****************************/
+----
+-- SM2private key asn1 defination
+-- modified 2012-7-17 simonpang
+----
+ECPrivateKey ::= SEQUENCE {
+ version INTEGER,
+ privateKey SM2PrivateKey,
+ parameters [0] Parameters OPTIONAL,
+ publicKey [1] SM2PublicKey
+}
+--
+-- modified 2012-7-17 simonpang
+-- &#35265;&#12298;SM2&#23494;&#30721;&#20351;&#29992;&#35268;&#33539;20110307&#12299;7.1&#33410;
+--
+
+SM2PrivateKey ::= INTEGER 
+--&#27880;&#24847;&#65281;&#19979;&#36848;&#20844;&#38053;&#20869;&#23481;&#20026;04||X||Y
+SM2PublicKey ::= BIT STRING
+
+       
+Parameters ::= CHOICE { 
+ --ecParameters ECParameters,
+ --unfound, ignore ??!!
+ 
+ namedCurve ObjectIdentifier, -- &#20351;&#29992;SM2&#26354;&#32447;&#26631;&#35782;OID
+ implicitlyCA NULL }
+
+ObjectIdentifier ::= OBJECT IDENTIFIER
+
+
+---
+-- sm2public key ASN1 defination
+---
+EccPublicKey ::= SEQUENCE {
+ objIds  SEQUENCE OF ObjID,
+ eccPublicKey  BIT STRING
+}
+
+ObjID ::= OBJECT IDENTIFIER
+
+
+--
+-- SM2 cipher 
+-- see &#12298;SM2&#23494;&#30721;&#20351;&#29992;&#35268;&#33539;20110307&#12299;
+--
+SM2Cipher ::= SEQUENCE{
+xCoordinate INTEGER,
+yCoordinate INTEGER,
+hash OCTET STRING SIZE(32),
+cipher OCTET STRING
+}
+
+---
+-- see &#12298;SM2&#23494;&#30721;&#20351;&#29992;&#35268;&#33539;20110307&#12299;
+-- &#22269;&#23494;&#23616;&#35268;&#33539;&#26377;&#35823;&#65292;&#25353;&#29031;&#21407;&#24847;&#20462;&#25913;
+---
+SM2Signature ::= SEQUENCE{
+r INTEGER, 
+s INTEGER
+}
+
+END

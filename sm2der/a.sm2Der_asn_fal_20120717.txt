@@ -1,0 +1,359 @@
+/****************************************\
+ *  simonpang @ catt2009 2011-12-08
+ *  1.modified 2012-5-23
+ *  POPOSigningKey->POPOSigningKeyInput->publicKey
+ *  后台实现有部分和CMCA接口规范
+ *  不符，本文为调通的与SM2算法
+ *  2.modified 2012-7-17
+ *  修改asn定义中sm2密文以及私钥部分 
+ *  证书申请相关的asn定义
+ *   !!!!!!!!!!!!!!!!!!!!!!!
+ *  注意：本文中文内容编译后将成为乱码，
+ *        请修改后保留中文内容！！
+ * ！！！！！！！！！！！！！！！！！！！
+ * need to close the "Use native machine types" option!
+ * 对于sm2本实现库，仅使用sm2相关定义即可
+\****************************************/
+
+/*
+ * containing cmca signedAndEvelopedData asn1 defination，
+ * asn1 defination of
+ * sm2 public key,private key and popsigningKey  
+ */
+Sm2Der DEFINITIONS ::= 
+BEGIN
+----
+-- Eveloped data from CMCA
+-- possibly containing certificate 
+-- or exchange key pair
+----
+
+CertifiedKeyPair ::= SEQUENCE {
+   certifiedKeyPairType  OBJECT IDENTIFIER,
+-- certOrEncCert  CertOrEncCert,
+   privateKey   [0] EnvelopedData      	OPTIONAL
+--publicationInfo [1] PKIPublicationInfo OPTIONAL  
+}
+
+CertOrEncCert ::= CHOICE {
+ certificate    [0] Certificate,
+ encryptedCert  [1] EnvelopedData
+}
+
+EnvelopedData ::=SignedAndEnvelopedData
+
+SignedAndEnvelopedData ::= SEQUENCE {
+  version         Version DEFAULT v2,---see X509
+  recipientInfos  RecipientInfos,
+  digestAlgorithms
+                  DigestAlgorithmIdentifiers,
+  encryptedContentInfo
+                  EncryptedContentInfo,
+  certificates CHOICE {
+    certSet       [0] IMPLICIT ExtendedCertificatesAndCertificates,
+    certSequence  [2] IMPLICIT Certificates
+  } OPTIONAL,
+  signerInfos     SignerInfos
+} 
+
+--
+-- RecipientInfos  2ed -> SET
+--
+
+RecipientInfos ::= CHOICE {
+  riSet           SET OF RecipientInfo,
+  riSequence      SEQUENCE OF RecipientInfo
+}
+
+
+RecipientInfo ::= SEQUENCE {
+  version         Version DEFAULT v1,
+  issuerAndSerialNumber
+                  IssuerAndSerialNumber,
+  keyEncryptionAlgorithm
+                  KeyEncryptionAlgorithmIdentifier,
+  encryptedKey    EncryptedKey
+}
+
+EncryptedKey ::= OCTET STRING
+
+
+---
+---DigestAlgorithmIdentifiers 3rd -> SET
+---
+DigestAlgorithmIdentifiers ::= CHOICE {
+  daSet   
+        SET OF DigestAlgorithmIdentifier,
+  daSequence  
+        SEQUENCE OF DigestAlgorithmIdentifier
+}
+
+----------------------
+KeyEncryptionAlgorithmIdentifier ::= AlgorithmIdentifier
+AlgorithmIdentifier  ::=  SEQUENCE OF  Algorithm
+Algorithm ::= OBJECT IDENTIFIER
+----------------------------
+Version ::= INTEGER { v1(0), v2(1), v3(2) }
+
+IssuerAndSerialNumber ::= SEQUENCE {
+----see asn1 defination of X509 cert
+  issuer        Name,  
+  serialNumber  CertificateSerialNumber 
+}
+CertificateSerialNumber ::= INTEGER
+Name ::= SEQUENCE OF RelativeDistinguishedName
+
+RelativeDistinguishedName ::= SET OF AttributeValueAssertion
+
+AttributeValueAssertion ::= SEQUENCE {
+    attributeType           OBJECT IDENTIFIER,
+    attributeValue          ANY
+    }
+    
+DigestAlgorithmIdentifier ::= SEQUENCE OF Algorithm
+
+
+--
+-- EncryptedContentInfo  4th -> SEQUENCE
+--
+
+EncryptedContentInfo ::= SEQUENCE {
+  contentType     ContentType,
+  contentEncryptionAlgorithm
+                  ContentEncryptionAlgorithmIdentifier,
+  encryptedContent
+                  [0] IMPLICIT EncryptedContent OPTIONAL
+}
+
+
+ContentType ::= OBJECT IDENTIFIER 
+ContentEncryptionAlgorithmIdentifier ::= SEQUENCE {  -- presume 
+    contentEncryptType OBJECT IDENTIFIER
+}
+EncryptedContent ::= OCTET STRING
+
+
+
+----
+---
+-- SignerInfos 6th -> SET
+---
+SignerInfos ::= CHOICE {
+    siSet         SET OF SignerInfo,
+    siSequence    SEQUENCE OF SignerInfo
+}
+
+SignerInfo ::= SEQUENCE {
+  version         Version DEFAULT v1,
+  issuerAndSerialNumber
+                  IssuerAndSerialNumber,
+  digestAlgorithm DigestAlgorithmIdentifier,
+  authenticatedAttributes CHOICE {
+    aaSet         [0] IMPLICIT SET OF Attribute, 
+    aaSequence    [2] EXPLICIT SEQUENCE OF Attribute
+  } OPTIONAL,
+  digestEncryptionAlgorithm  
+                  DigestEncryptionAlgorithmIdentifier,
+  encryptedDigest EncryptedDigest
+} 
+
+Attribute ::= SEQUENCE {
+    attributeType           OBJECT IDENTIFIER,
+    attributeValue          ANY
+    }
+
+DigestEncryptionAlgorithmIdentifier ::= AlgorithmIdentifier
+
+EncryptedDigest ::= OCTET STRING
+
+
+------------------
+
+---
+---certificates 5th -> CHOICE ??
+--  see "X509certificate" asn1 defination
+---
+
+Certificates ::=
+  SEQUENCE OF Certificate
+  
+ExtendedCertificatesAndCertificates ::=
+  SET OF ExtendedCertificateOrCertificate
+
+ExtendedCertificateOrCertificate ::= CHOICE {
+  certificate    Certificate,  -- X.509
+  extendedCertificate  
+        [0] IMPLICIT ExtendedCertificate -- PKCS#6
+}
+
+ExtendedCertificate ::= Certificate -- cheating
+
+
+
+---
+-- X509certificate asn1, reference to:
+-- http://www.cs.auckland.ac.nz/~pgut001/pubs/x509guide.txt
+---
+
+
+Certificate ::= SEQUENCE {
+    tbsCertificate          TBSCertificate,
+    signatureAlgorithm      AlgorithmIdentifier,
+    signature               BIT STRING
+    }
+
+---
+-- TBSCertificate
+---  
+TBSCertificate ::= SEQUENCE {
+    version          [ 0 ]  Version DEFAULT v1,
+    serialNumber            CertificateSerialNumber,
+    signature               AlgorithmIdentifier,
+    issuer                  Name,
+    validity                Validity,
+    subject                 Name,
+    subjectPublicKeyInfo    SubjectPublicKeyInfo,
+    issuerUniqueID    [ 1 ] IMPLICIT UniqueIdentifier OPTIONAL,
+    subjectUniqueID   [ 2 ] IMPLICIT UniqueIdentifier OPTIONAL,
+    extensions        [ 3 ] Extensions OPTIONAL
+    }
+
+
+Validity ::= SEQUENCE {
+    notBefore               UTCTime,
+    notAfter                UTCTime
+    }
+    
+SubjectPublicKeyInfo  ::=  SEQUENCE  {
+ algorithm     AlgorithmIdentifierEx,
+ -- p7 of cmca,a "NULL", assume to be a objId
+ -- 见http://www.ietf.org/rfc/rfc2459.txt
+ subjectPublicKey  BIT STRING
+}
+
+---p7 from cmca Certificate->
+-- ->TBSCertificate->SubjectPublicKeyInfo
+AlgorithmIdentifierEx ::= SEQUENCE {
+ algor    OBJECT IDENTIFIER,
+ other    ANY  OPTIONAL    
+} 
+
+UniqueIdentifier ::= BIT STRING
+
+Extensions ::= SEQUENCE OF Extension
+
+Extension ::= SEQUENCE {
+    extnid                  OBJECT IDENTIFIER,
+    critical                BOOLEAN DEFAULT FALSE,
+    extnValue               OCTET STRING
+    }
+
+
+/******************************************************\
+* 定义来自国密局《SM2加密签名消息语法规范201104》
+* 由于国密规范中asn定义不全，大量引用ansi的X9.62[X962]
+* 诸如:http://grouper.ieee.org/groups/1363/Research/Other.html
+* ansi的规范需要购买，同时未找到相应的rfc文档
+\******************************************************/
+/****************************
+* simonpang
+* @ catt2009 2011-12-04
+****************************/
+----
+-- SM2private key asn1 defination
+-- modified 2012-7-17 simonpang
+----
+ECPrivateKey ::= SEQUENCE {
+ version INTEGER,
+ privateKey SM2PrivateKey,
+ parameters [0] Parameters OPTIONAL,
+ publicKey [1] SM2PublicKey
+}
+--
+-- modified 2012-7-17 simonpang
+-- 见《SM2密码使用规范20110307》7.1节
+--
+
+SM2PrivateKey ::= INTEGER 
+--注意！下述公钥内容为04||X||Y
+SM2PublicKey ::= BIT STRING
+
+       
+Parameters ::= CHOICE { 
+ --ecParameters ECParameters,
+ --unfound, ignore ??!!
+ 
+ namedCurve ObjectIdentifier, -- 使用SM2曲线标识OID
+ implicitlyCA NULL }
+
+ObjectIdentifier ::= OBJECT IDENTIFIER
+
+--
+-- SM2 cipher 
+-- see 《SM2密码使用规范20110307》
+--
+SM2Cipher ::= SEQUENCE{
+xCoordinate INTEGER,
+yCoordinate INTEGER,
+hash OCTET STRING SIZE(32),
+cipher OCTET STRING
+}
+
+
+---
+-- sm2public key ASN1 defination
+---
+EccPublicKey ::= SEQUENCE {
+ objIds  SEQUENCE OF ObjID,
+ eccPublicKey  BIT STRING
+}
+
+ObjID ::= OBJECT IDENTIFIER
+
+
+---
+--  proof of possesion 
+--  POP with publickey
+--  see《中国移动PKI系统CA-RA接口规范-081228.doc》
+---
+POPOSigningKey ::= SEQUENCE {
+ poposkInput   [0] POPOSigningKeyInput OPTIONAL,
+ algorithmIdentifier  AlgorithmIdentifier,
+ signature   BIT STRING }                      
+     
+POPOSigningKeyInput ::= SEQUENCE {
+  authInfo  CHOICE {
+  sender        [0] GeneralName,    
+  publicKeyMAC  PKMACValue }, 
+  ----publicKey     SubjectPublicKeyInfo
+  ----modified 2012-5-23
+  publicKey     EccPublicKey } 
+ 
+ 
+
+GeneralName ::= CHOICE {
+ otherName       [0]     OtherName,
+ rfc822Name      [1]     IA5String,
+ dNSName         [2]     IA5String,
+ uniformResourceIdentifier  [4]     IA5String,
+ iPAddress       [5]     OCTET STRING,
+ registeredID    [6]     OBJECT IDENTIFIER}
+
+OtherName ::= SEQUENCE {
+ type-id  OBJECT IDENTIFIER,
+ value  [0] EXPLICIT ANY DEFINED BY type-id }
+
+PKMACValue ::= SEQUENCE {
+ algId  AlgorithmIdentifier,
+ value  BIT STRING }
+    
+---AlgorithmIdentifier  ::=  SEQUENCE OF  Algorithm
+---Algorithm ::= OBJECT IDENTIFIER
+
+--SubjectPublicKeyInfo  ::=  SEQUENCE  {
+ --algorithm     AlgorithmIdentifier,
+ --subjectPublicKey  BIT STRING
+--}
+
+END   
+

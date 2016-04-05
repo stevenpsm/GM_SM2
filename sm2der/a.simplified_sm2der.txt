@@ -1,0 +1,77 @@
+
+
+
+/******************************************************\
+* 定义来自国密局《SM2加密签名消息语法规范201104》
+* 由于国密规范中asn定义不全，大量引用ansi的X9.62[X962]
+* 诸如:http://grouper.ieee.org/groups/1363/Research/Other.html
+* ansi的规范需要购买，同时未找到相应的rfc文档
+\******************************************************/
+/****************************
+* simonpang
+* @catt2009 2011-12-04
+****************************/
+----
+-- SM2private key asn1 defination
+-- modified 2012-7-17 simonpang
+----
+ECPrivateKey ::= SEQUENCE {
+ version INTEGER,
+ privateKey SM2PrivateKey,
+ parameters [0] Parameters OPTIONAL,
+ publicKey [1] SM2PublicKey
+}
+--
+-- modified 2012-7-17 simonpang
+-- 见《SM2密码使用规范20110307》7.1节
+--
+
+SM2PrivateKey ::= INTEGER 
+--注意！下述公钥内容为04||X||Y
+SM2PublicKey ::= BIT STRING
+
+       
+Parameters ::= CHOICE { 
+ --ecParameters ECParameters,
+ --unfound, ignore ??!!
+ 
+ namedCurve ObjectIdentifier, -- 使用SM2曲线标识OID
+ implicitlyCA NULL }
+
+ObjectIdentifier ::= OBJECT IDENTIFIER
+
+
+---
+-- sm2public key ASN1 defination
+---
+EccPublicKey ::= SEQUENCE {
+ objIds  SEQUENCE OF ObjID,
+ eccPublicKey  BIT STRING
+}
+
+ObjID ::= OBJECT IDENTIFIER
+
+
+--
+-- SM2 cipher 
+-- see 《SM2密码使用规范20110307》
+--
+SM2Cipher ::= SEQUENCE{
+xCoordinate INTEGER,
+yCoordinate INTEGER,
+hash OCTET STRING SIZE(32),
+cipher OCTET STRING
+}
+
+---
+-- see 《SM2密码使用规范20110307》
+-- 国密局规范有误，按照原意修改
+---
+SM2Signature ::= SEQUENCE{
+r INTEGER, 
+s INTEGER
+}
+
+
+
+
